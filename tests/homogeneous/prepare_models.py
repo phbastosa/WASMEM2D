@@ -32,7 +32,7 @@ vs = np.array([1060])
 ro = np.array([2250])
 z = np.array([])
 
-E = np.array([0.1])
+E = np.array([0.0])
 D = np.array([0.0])
 
 tht = np.array([0.0]) * np.pi/180.0
