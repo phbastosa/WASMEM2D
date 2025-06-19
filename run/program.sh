@@ -105,10 +105,10 @@ case "$1" in
 
     python3 -B $folder/prepare_models.py 0.0 0.0 0.0
 
-    ./../bin/modeling.exe $parameters
-
     eikonal_file=../outputs/snapshots/elastic_ani_eikonal_1001x1001_shot_1.bin 
     snapshot_file=../outputs/snapshots/elastic_ani_snapshot_step2000_1001x1001_shot_1.bin 
+
+    ./../bin/modeling.exe $parameters
 
     mv $eikonal_file ../outputs/snapshots/anisotropy_eikonal_eF_dF_thtF.bin 
     mv $snapshot_file ../outputs/snapshots/anisotropy_snapshot_eF_dF_thtF.bin 
