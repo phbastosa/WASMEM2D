@@ -8,18 +8,18 @@ z_samples = 1001                           # <int>
 x_spacing = 10.0                           # [m] <float> 
 z_spacing = 10.0                           # [m] <float> 
 
-vp_model_file = ../inputs/models/homogeneous_test_vp.bin
-ro_model_file = ../inputs/models/homogeneous_test_ro.bin
+vp_model_file = ../inputs/models/anisotropy_test_vp.bin
+ro_model_file = ../inputs/models/anisotropy_test_ro.bin
 
-Cijkl_folder = ../inputs/models/homogeneous_test_
+Cijkl_folder = ../inputs/models/anisotropy_test_
 
 #---------------------------------------------------------------------------------------------------
 # Geometry parameters ------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------------------
 
-SPS = ../inputs/geometry/homogeneous_test_SPS.txt              
-RPS = ../inputs/geometry/homogeneous_test_RPS.txt     
-XPS = ../inputs/geometry/homogeneous_test_XPS.txt     
+SPS = ../inputs/geometry/anisotropy_test_SPS.txt              
+RPS = ../inputs/geometry/anisotropy_test_RPS.txt     
+XPS = ../inputs/geometry/anisotropy_test_XPS.txt     
 
 #---------------------------------------------------------------------------------------------------
 # Modeling parameters ------------------------------------------------------------------------------

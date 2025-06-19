@@ -8,9 +8,9 @@ nx = 1001
 nz = 1001
 dh = 10.0
 
-SPS = np.loadtxt("../inputs/geometry/homogeneous_test_SPS.txt", delimiter = ",", dtype = float)
-RPS = np.loadtxt("../inputs/geometry/homogeneous_test_RPS.txt", delimiter = ",", dtype = float)
-XPS = np.loadtxt("../inputs/geometry/homogeneous_test_XPS.txt", delimiter = ",", dtype = int)
+SPS = np.loadtxt("../inputs/geometry/anisotropy_test_SPS.txt", delimiter = ",", dtype = float)
+RPS = np.loadtxt("../inputs/geometry/anisotropy_test_RPS.txt", delimiter = ",", dtype = float)
+XPS = np.loadtxt("../inputs/geometry/anisotropy_test_XPS.txt", delimiter = ",", dtype = int)
 
 dt = 1e-3
 tId = 2000

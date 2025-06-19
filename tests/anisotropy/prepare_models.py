@@ -25,9 +25,9 @@ XPS[:,0] = np.arange(ns)
 XPS[:,1] = np.zeros(ns) 
 XPS[:,2] = np.zeros(ns) + nr 
 
-np.savetxt("../inputs/geometry/homogeneous_test_SPS.txt", SPS, fmt = "%.2f", delimiter = ",")
-np.savetxt("../inputs/geometry/homogeneous_test_RPS.txt", RPS, fmt = "%.2f", delimiter = ",")
-np.savetxt("../inputs/geometry/homogeneous_test_XPS.txt", XPS, fmt = "%.0f", delimiter = ",")
+np.savetxt("../inputs/geometry/anisotropy_test_SPS.txt", SPS, fmt = "%.2f", delimiter = ",")
+np.savetxt("../inputs/geometry/anisotropy_test_RPS.txt", RPS, fmt = "%.2f", delimiter = ",")
+np.savetxt("../inputs/geometry/anisotropy_test_XPS.txt", XPS, fmt = "%.0f", delimiter = ",")
 
 vp = np.array([1800])
 vs = np.array([1060])
@@ -91,12 +91,12 @@ for i in range(len(vp)):
     C11[layer:] = Cr[0,0]; C13[layer:] = Cr[0,1]; C15[layer:] = Cr[0,2] 
     C33[layer:] = Cr[1,1]; C35[layer:] = Cr[1,2]; C55[layer:] = Cr[2,2]
 
-Vp.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/homogeneous_test_vp.bin")
-Ro.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/homogeneous_test_ro.bin")
+Vp.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/anisotropy_test_vp.bin")
+Ro.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/anisotropy_test_ro.bin")
 
-C11.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/homogeneous_test_C11.bin")
-C13.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/homogeneous_test_C13.bin")
-C15.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/homogeneous_test_C15.bin")
-C33.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/homogeneous_test_C33.bin")
-C35.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/homogeneous_test_C35.bin")
-C55.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/homogeneous_test_C55.bin")
+C11.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/anisotropy_test_C11.bin")
+C13.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/anisotropy_test_C13.bin")
+C15.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/anisotropy_test_C15.bin")
+C33.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/anisotropy_test_C33.bin")
+C35.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/anisotropy_test_C35.bin")
+C55.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/anisotropy_test_C55.bin")
