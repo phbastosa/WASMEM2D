@@ -2,24 +2,24 @@
 # Model paramenters --------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------------------
 
-x_samples = 1001                           # <int>  
-z_samples = 1001                           # <int>  
+x_samples = 3401                          # <int>  
+z_samples = 601                           # <int>  
 
-x_spacing = 10.0                           # [m] <float> 
-z_spacing = 10.0                           # [m] <float> 
+x_spacing = 5.0                           # [m] <float> 
+z_spacing = 5.0                           # [m] <float> 
 
-vp_model_file = ../inputs/models/simple_vp.bin
-ro_model_file = ../inputs/models/simple_ro.bin
+vp_model_file = ../inputs/models/WASMEM2D_vp.bin
+ro_model_file = ../inputs/models/WASMEM2D_ro.bin
 
-Cijkl_folder = ../inputs/models/simple_
+Cijkl_folder = ../inputs/models/WASMEM2D_
 
 #---------------------------------------------------------------------------------------------------
 # Geometry parameters ------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------------------
 
-SPS = ../inputs/geometry/simple_SPS.txt              
-RPS = ../inputs/geometry/simple_RPS.txt     
-XPS = ../inputs/geometry/simple_XPS.txt     
+SPS = ../inputs/geometry/WASMEM2D_SPS.txt              
+RPS = ../inputs/geometry/WASMEM2D_RPS.txt     
+XPS = ../inputs/geometry/WASMEM2D_XPS.txt     
 
 #---------------------------------------------------------------------------------------------------
 # Modeling parameters ------------------------------------------------------------------------------
@@ -30,14 +30,14 @@ XPS = ../inputs/geometry/simple_XPS.txt
 
 modeling_type = 0
 
-time_samples = 1001
-time_spacing = 1e-3
-max_frequency = 30.0
+time_samples = 10001
+time_spacing = 5e-4
+max_frequency = 45.0
 
-boundary_samples = 50
-boundary_damping = 0.0055
+boundary_samples = 100
+boundary_damping = 0.0015
 
-snapshot = true
+snapshot = false
 beg_snap = 200
 end_snap = 200
 num_snap = 1
