@@ -5,8 +5,14 @@
 
 # include "../geometry/geometry.hpp"
 
+# define KR 4
+# define KW 16
+# define KS 5.0f
+
 # define NSWEEPS 4
 # define MESHDIM 2
+
+# define NTHREADS 256
 
 # define COMPRESS 65535
 
@@ -36,31 +42,41 @@ private:
     void set_dampers();
     void set_eikonal();
 
-    void compute_snapshots();
-    void compute_seismogram();
+    void set_geometry();
+    void set_snapshots();
+    void set_seismogram();
 
     void set_wavefields();
     void initialization();
+
+    void compute_snapshots();
+    void compute_seismogram();
 
     void show_time_progress();
 
 protected:
 
     float dx, dz, dt;
+
     int nxx, nzz, matsize;
     int nt, nx, nz, nb, nPoints;
     int tlag, recId, sIdx, sIdz;
-    int nThreads, sBlocks, nBlocks;
     int nsnap, isnap, fsnap;
     int max_spread, timeId;
+    int sBlocks, nBlocks;
 
     float bd, fmax;
 
     int total_levels;    
+
+    float sx, sz;
     float dx2i, dz2i;
 
     int * d_sgnv = nullptr;
     int * d_sgnt = nullptr;
+
+    float * d_skw = nullptr;
+    float * d_rkw = nullptr;
 
     std::string snapshot_folder;
     std::string seismogram_folder;
@@ -126,7 +142,7 @@ __global__ void inner_sweep(float * T, float * S, int * sgnv, int * sgnt, int sg
                             int x_offset, int z_offset, int xd, int zd, int nxx, int nzz, 
                             float dx, float dz, float dx2i, float dz2i);
 
-__global__ void compute_seismogram_GPU(float * P, int * rIdx, int * rIdz, float * seismogram, int spread, int tId, int tlag, int nt, int nzz);
+__global__ void compute_seismogram_GPU(float * P, int * rIdx, int * rIdz, float * rkw, float * seismogram, int spread, int tId, int tlag, int nt, int nzz);
 
 __device__ float get_boundary_damper(float * damp1D, float * damp2D, int i, int j, int nxx, int nzz, int nabc);
 

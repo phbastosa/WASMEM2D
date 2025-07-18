@@ -2,24 +2,24 @@
 # Model paramenters --------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------------------
 
-x_samples = 3401                          # <int>  
-z_samples = 601                           # <int>  
+x_samples = 2001                           # <int>  
+z_samples = 501                            # <int>  
 
 x_spacing = 5.0                           # [m] <float> 
 z_spacing = 5.0                           # [m] <float> 
 
-vp_model_file = ../inputs/models/WASMEM2D_vp.bin
-ro_model_file = ../inputs/models/WASMEM2D_ro.bin
+vp_model_file = ../inputs/models/precision_test_vp.bin
+ro_model_file = ../inputs/models/precision_test_ro.bin
 
-Cijkl_folder = ../inputs/models/WASMEM2D_
+Cijkl_folder = ../inputs/models/precision_test_
 
 #---------------------------------------------------------------------------------------------------
 # Geometry parameters ------------------------------------------------------------------------------
 #---------------------------------------------------------------------------------------------------
 
-SPS = ../inputs/geometry/WASMEM2D_SPS.txt              
-RPS = ../inputs/geometry/WASMEM2D_RPS.txt     
-XPS = ../inputs/geometry/WASMEM2D_XPS.txt     
+SPS = ../inputs/geometry/precision_test_SPS.txt              
+RPS = ../inputs/geometry/precision_test_RPS.txt     
+XPS = ../inputs/geometry/precision_test_XPS.txt     
 
 #---------------------------------------------------------------------------------------------------
 # Modeling parameters ------------------------------------------------------------------------------
@@ -28,11 +28,11 @@ XPS = ../inputs/geometry/WASMEM2D_XPS.txt
 # [1] - Elastic ANI
 # --------------------------------------------------------------------------------------------------
 
-modeling_type = 0
+modeling_type = 1
 
-time_samples = 10001
+time_samples = 15001
 time_spacing = 5e-4
-max_frequency = 45.0
+max_frequency = 30.0
 
 boundary_samples = 100
 boundary_damping = 0.0015

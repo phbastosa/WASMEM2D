@@ -61,37 +61,29 @@ void Elastic_ISO::set_specifications()
 
 void Elastic_ISO::compute_eikonal()
 {
-    float sx = geometry->xsrc[geometry->sInd[srcId]]; 
-    float sz = geometry->zsrc[geometry->sInd[srcId]]; 
-
-    sIdx = (int)((sx + 0.5f*dx) / dx) + nb;
-    sIdz = (int)((sz + 0.5f*dz) / dz) + nb;
-
     dim3 grid(1,1,1);
     dim3 block(MESHDIM+1,MESHDIM+1,1);
 
-    time_set<<<nBlocks,nThreads>>>(d_T, matsize);
-
+    time_set<<<nBlocks,NTHREADS>>>(d_T, matsize);
     time_init<<<grid,block>>>(d_T,d_S,sx,sz,dx,dz,sIdx,sIdz,nzz,nb);
-
     eikonal_solver();
 }
 
 void Elastic_ISO::compute_velocity()
 {
-    compute_velocity_ssg<<<nBlocks,nThreads>>>(d_Vx, d_Vz, d_Txx, d_Tzz, d_Txz, d_T, d_B, maxB, minB, d1D, d2D, 
-                                               d_wavelet, dx, dz, dt, timeId, tlag, sIdx, sIdz, nxx, nzz, nb, nt);
+    compute_velocity_ssg<<<nBlocks,NTHREADS>>>(d_Vx, d_Vz, d_Txx, d_Tzz, d_Txz, d_T, d_B, maxB, minB, d1D, d2D, 
+                                               d_wavelet, dx, dz, dt, timeId, tlag, sIdx, sIdz, d_skw, nxx, nzz, nb, nt);
 }
 
 void Elastic_ISO::compute_pressure()
 {
-    compute_pressure_ssg<<<nBlocks,nThreads>>>(d_Vx, d_Vz, d_Txx, d_Tzz, d_Txz, d_P, d_T, d_C55, d_C13, maxC55, 
+    compute_pressure_ssg<<<nBlocks,NTHREADS>>>(d_Vx, d_Vz, d_Txx, d_Tzz, d_Txz, d_P, d_T, d_C55, d_C13, maxC55, 
                                                minC55, maxC13, minC13, timeId, tlag, dx, dz, dt, nxx, nzz);    
 }
 
 __global__ void compute_velocity_ssg(float * Vx, float * Vz, float * Txx, float * Tzz, float * Txz, float * T, uintc * B, float maxB, float minB, 
                                      float * damp1D, float * damp2D, float * wavelet, float dx, float dz, float dt, int tId, int tlag, int sIdx, 
-                                     int sIdz, int nxx, int nzz, int nb, int nt)
+                                     int sIdz, float * skw, int nxx, int nzz, int nb, int nt)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
@@ -102,8 +94,20 @@ __global__ void compute_velocity_ssg(float * Vx, float * Vz, float * Txx, float 
 
     if ((index == 0) && (tId < nt))
     {
-        Txx[sIdz + sIdx*nzz] += wavelet[tId] / (dx*dz);
-        Tzz[sIdz + sIdx*nzz] += wavelet[tId] / (dx*dz);
+        for (int i = 0; i < KR; i++)
+        {
+            int zi = sIdz + i - 1;
+            for (int j = 0; j < KR; j++)
+            {
+                int xi = sIdx + j - 1;
+
+                Txx[zi + xi*nzz] += skw[i + j*KR]*wavelet[tId] / (dx*dz);
+                Tzz[zi + xi*nzz] += skw[i + j*KR]*wavelet[tId] / (dx*dz);
+            }
+        }
+
+        // Txx[sIdz + sIdx*nzz] += wavelet[tId] / (dx*dz);
+        // Tzz[sIdz + sIdx*nzz] += wavelet[tId] / (dx*dz);
     }
 
     if ((T[index] < (float)(tId + tlag)*dt) && (index < nxx*nzz))

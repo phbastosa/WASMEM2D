@@ -129,23 +129,17 @@ void Elastic_ANI::set_specifications()
 
 void Elastic_ANI::compute_eikonal()
 {
-    float sx = geometry->xsrc[geometry->sInd[srcId]]; 
-    float sz = geometry->zsrc[geometry->sInd[srcId]]; 
-
-    sIdx = (int)((sx + 0.5f*dx) / dx) + nb;
-    sIdz = (int)((sz + 0.5f*dz) / dz) + nb;
-
     dim3 grid(1,1,1);
     dim3 block(MESHDIM+1,MESHDIM+1,1);
 
-    time_set<<<nBlocks,nThreads>>>(d_T, matsize);
+    time_set<<<nBlocks,NTHREADS>>>(d_T, matsize);
     time_init<<<grid,block>>>(d_T,d_S,sx,sz,dx,dz,sIdx,sIdz,nzz,nb);
     eikonal_solver();
 
-    get_quasi_slowness<<<nBlocks,nThreads>>>(d_T,d_S,dx,dz,sIdx,sIdz,nxx,nzz,nb,d_C11,d_C13,d_C15,d_C33,d_C35,d_C55,minC11,
+    get_quasi_slowness<<<nBlocks,NTHREADS>>>(d_T,d_S,dx,dz,sIdx,sIdz,nxx,nzz,nb,d_C11,d_C13,d_C15,d_C33,d_C35,d_C55,minC11,
                                              maxC11,minC13,maxC13,minC15,maxC15,minC33,maxC33,minC35,maxC35,minC55,maxC55);
 
-    time_set<<<nBlocks,nThreads>>>(d_T, matsize);
+    time_set<<<nBlocks,NTHREADS>>>(d_T, matsize);
     time_init<<<grid,block>>>(d_T,d_S,sx,sz,dx,dz,sIdx,sIdz,nzz,nb);
     eikonal_solver();
 
@@ -154,13 +148,13 @@ void Elastic_ANI::compute_eikonal()
 
 void Elastic_ANI::compute_velocity()
 {
-    compute_velocity_rsg<<<nBlocks, nThreads>>>(d_Vx, d_Vz, d_Txx, d_Tzz, d_Txz, d_T, d_B, minB, maxB, d1D, d2D, 
+    compute_velocity_rsg<<<nBlocks, NTHREADS>>>(d_Vx, d_Vz, d_Txx, d_Tzz, d_Txz, d_T, d_B, minB, maxB, d1D, d2D, 
                                                 d_wavelet, dwc, dx, dz, dt, timeId, tlag, sIdx, sIdz, nxx, nzz, nb, nt);
 }
 
 void Elastic_ANI::compute_pressure()
 {
-    compute_pressure_rsg<<<nBlocks, nThreads>>>(d_Vx, d_Vz, d_Txx, d_Tzz, d_Txz, d_P, d_T, d_C11, d_C13, d_C15, d_C33, 
+    compute_pressure_rsg<<<nBlocks, NTHREADS>>>(d_Vx, d_Vz, d_Txx, d_Tzz, d_Txz, d_P, d_T, d_C11, d_C13, d_C15, d_C33, 
                                                 d_C35, d_C55, timeId, tlag, dx, dz, dt, nxx, nzz, minC11, maxC11, minC13, 
                                                 maxC13, minC15, maxC15, minC33, maxC33, minC35, maxC35, minC55, maxC55);    
 }

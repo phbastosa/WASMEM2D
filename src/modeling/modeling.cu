@@ -25,6 +25,38 @@ void Modeling::set_parameters()
     snapshot_folder = catch_parameter("snapshot_folder", parameters);
     seismogram_folder = catch_parameter("seismogram_folder", parameters);
 
+    nPoints = nx*nz;
+
+    nxx = nx + 2*nb;
+    nzz = nz + 2*nb;
+
+    matsize = nxx*nzz;
+
+    nBlocks = (int)((matsize + NTHREADS - 1) / NTHREADS);
+
+    set_wavelet();
+    set_dampers();
+    set_eikonal();
+
+    set_geometry();
+    set_snapshots();
+    set_seismogram();
+
+    set_specifications();
+
+    cudaMalloc((void**)&(d_P), matsize*sizeof(float));
+    cudaMalloc((void**)&(d_T), matsize*sizeof(float));
+
+    cudaMalloc((void**)&(d_Vx), matsize*sizeof(float));
+    cudaMalloc((void**)&(d_Vz), matsize*sizeof(float));
+
+    cudaMalloc((void**)&(d_Txx), matsize*sizeof(float));
+    cudaMalloc((void**)&(d_Tzz), matsize*sizeof(float));
+    cudaMalloc((void**)&(d_Txz), matsize*sizeof(float));
+}
+
+void Modeling::set_geometry()
+{
     geometry = new Geometry();
     geometry->parameters = parameters;
     geometry->set_parameters();
@@ -36,19 +68,15 @@ void Modeling::set_parameters()
             max_spread = geometry->spread[index]; 
     }
 
-    nPoints = nx*nz;
+    cudaMalloc((void**)&(d_skw), KW*sizeof(float));
+    cudaMalloc((void**)&(d_rkw), KW*max_spread*sizeof(float));
 
-    nxx = nx + 2*nb;
-    nzz = nz + 2*nb;
+    cudaMalloc((void**)&(d_rIdx), max_spread*sizeof(int));
+    cudaMalloc((void**)&(d_rIdz), max_spread*sizeof(int));
+}
 
-    matsize = nxx*nzz;
-
-    nThreads = 256;
-    nBlocks = (int)((matsize + nThreads - 1) / nThreads);
-    sBlocks = (int)((max_spread + nThreads - 1) / nThreads); 
-
-    h_seismogram = new float[nt*max_spread]();
-
+void Modeling::set_snapshots()
+{
     if (snapshot)
     {
         if (nsnap == 1) 
@@ -62,25 +90,13 @@ void Modeling::set_parameters()
         snapshot_in = new float[matsize]();
         snapshot_out = new float[nPoints]();
     }
+}
 
-    set_wavelet();
-    set_dampers();
-    set_eikonal();
+void Modeling::set_seismogram()
+{
+    sBlocks = (int)((max_spread + NTHREADS - 1) / NTHREADS); 
 
-    set_specifications();
-
-    cudaMalloc((void**)&(d_P), matsize*sizeof(float));
-    cudaMalloc((void**)&(d_T), matsize*sizeof(float));
-
-    cudaMalloc((void**)&(d_Vx), matsize*sizeof(float));
-    cudaMalloc((void**)&(d_Vz), matsize*sizeof(float));
-
-    cudaMalloc((void**)&(d_Txx), matsize*sizeof(float));
-    cudaMalloc((void**)&(d_Tzz), matsize*sizeof(float));
-    cudaMalloc((void**)&(d_Txz), matsize*sizeof(float));
-
-    cudaMalloc((void**)&(d_rIdx), max_spread*sizeof(int));
-    cudaMalloc((void**)&(d_rIdz), max_spread*sizeof(int));
+    h_seismogram = new float[nt*max_spread]();
 
     cudaMalloc((void**)&(d_seismogram), nt*max_spread*sizeof(float));
 }
@@ -93,7 +109,7 @@ void Modeling::set_wavelet()
     float t0 = 2.0f*sqrtf(M_PI) / fmax;
     float fc = fmax / (3.0f * sqrtf(M_PI));
 
-    tlag = (int)(t0 / dt) + 1;
+    tlag = (int)((t0 + 0.5f*dt) / dt);
 
     for (int n = 0; n < nt; n++)
     {
@@ -264,25 +280,58 @@ void Modeling::set_wavefields()
 
 void Modeling::initialization()
 {
-    sIdx = (int)((geometry->xsrc[geometry->sInd[srcId]] + 0.5f*dx) / dx) + nb;
-    sIdz = (int)((geometry->zsrc[geometry->sInd[srcId]] + 0.5f*dz) / dz) + nb;
+    sx = geometry->xsrc[geometry->sInd[srcId]];
+    sz = geometry->zsrc[geometry->sInd[srcId]];
+
+    sIdx = (int)(sx / dx);
+    sIdz = (int)(sz / dz);
+
+    float * h_skw = new float[KW]();
+
+    auto skw = kaiser_weights(sx, sz, sIdx, sIdz, dx, dz, KS);
+
+    for (int zId = 0; zId < KR; zId++)
+        for (int xId = 0; xId < KR; xId++)
+            h_skw[zId + xId*KR] = skw[zId][xId];
+
+    sIdx += nb; 
+    sIdz += nb;
 
     int * h_rIdx = new int[max_spread]();
     int * h_rIdz = new int[max_spread]();
 
-    int spread = 0;
+    float * h_rkw = new float[KW*max_spread]();
+
+    int spreadId = 0;
 
     for (recId = geometry->iRec[srcId]; recId < geometry->fRec[srcId]; recId++)
     {
-        h_rIdx[spread] = (int)((geometry->xrec[recId] + 0.5f*dx) / dx) + nb;
-        h_rIdz[spread] = (int)((geometry->zrec[recId] + 0.5f*dz) / dz) + nb;
+        float rx = geometry->xrec[recId];
+        float rz = geometry->zrec[recId];
+        
+        int rIdx = (int)(rx / dx);
+        int rIdz = (int)(rz / dz);
     
-        ++spread;
+        auto rkw = kaiser_weights(rx, rz, rIdx, rIdz, dx, dz, KS);
+        
+        for (int zId = 0; zId < KR; zId++)
+            for (int xId = 0; xId < KR; xId++)
+                h_rkw[zId + xId*KR + spreadId*KW] = rkw[zId][xId];
+
+        h_rIdx[spreadId] = rIdx + nb;
+        h_rIdz[spreadId] = rIdz + nb;
+
+        ++spreadId;
     }
 
-    cudaMemcpy(d_rIdx, h_rIdx, geometry->spread[srcId]*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_rIdz, h_rIdz, geometry->spread[srcId]*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_skw, h_skw, KW*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rkw, h_rkw, KW*max_spread*sizeof(float), cudaMemcpyHostToDevice);
 
+    cudaMemcpy(d_rIdx, h_rIdx, max_spread*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rIdz, h_rIdz, max_spread*sizeof(int), cudaMemcpyHostToDevice);
+
+    delete[] h_skw;
+    delete[] h_rkw;
     delete[] h_rIdx;
     delete[] h_rIdz;
 }
@@ -318,9 +367,9 @@ void Modeling::eikonal_solver()
                          (level >= max_level) ? total_levels - level : 
                          total_levels - min_level - max_level + level;
 
-            int nblk = (int)((n_elements + nThreads - 1) / nThreads);
+            int nblk = (int)((n_elements + NTHREADS - 1) / NTHREADS);
 
-            inner_sweep<<<nblk, nThreads>>>(d_T, d_S, d_sgnv, d_sgnt, sgni, sgnj, x_offset, z_offset, xd, zd, nxx, nzz, dx, dz, dx2i, dz2i); 
+            inner_sweep<<<nblk, NTHREADS>>>(d_T, d_S, d_sgnv, d_sgnt, sgni, sgnj, x_offset, z_offset, xd, zd, nxx, nzz, dx, dz, dx2i, dz2i); 
         }
     }
 }
@@ -345,7 +394,7 @@ void Modeling::compute_snapshots()
 
 void Modeling::show_time_progress()
 {
-    if (timeId > tlag)
+    if (timeId >= tlag)
     {
         if ((timeId - tlag) % (int)(nt / 10) == 0) 
         {
@@ -360,14 +409,14 @@ void Modeling::show_time_progress()
 
 void Modeling::compute_seismogram()
 {
-    compute_seismogram_GPU<<<sBlocks,nThreads>>>(d_P, d_rIdx, d_rIdz, d_seismogram, geometry->spread[srcId], timeId, tlag, nt, nzz);     
+    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_P, d_rIdx, d_rIdz, d_rkw, d_seismogram, max_spread, timeId, tlag, nt, nzz);     
 }
 
 void Modeling::export_seismogram()
 {   
     cudaMemcpy(h_seismogram, d_seismogram, nt*max_spread*sizeof(float), cudaMemcpyDeviceToHost);    
     std::string data_file = seismogram_folder + modeling_type + "_nStations" + std::to_string(geometry->spread[srcId]) + "_nSamples" + std::to_string(nt) + "_shot_" + std::to_string(geometry->sInd[srcId]+1) + ".bin";
-    export_binary_float(data_file, h_seismogram, nt*geometry->spread[srcId]);    
+    export_binary_float(data_file, h_seismogram, nt*max_spread);    
 }
 
 void Modeling::expand_boundary(float * input, float * output)
@@ -520,12 +569,27 @@ __global__ void inner_sweep(float * T, float * S, int * sgnv, int * sgnt, int sg
     }
 }
 
-__global__ void compute_seismogram_GPU(float * P, int * rIdx, int * rIdz, float * seismogram, int spread, int tId, int tlag, int nt, int nzz)
+__global__ void compute_seismogram_GPU(float * P, int * rIdx, int * rIdz, float * rkw, float * seismogram, int spread, int tId, int tlag, int nt, int nzz)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
     if ((index < spread) && (tId >= tlag))
-        seismogram[(tId - tlag) + index*nt] = P[rIdz[index] + rIdx[index]*nzz];
+    {
+        seismogram[(tId - tlag) + index*nt] = 0.0f;    
+        
+        for (int i = 0; i < KR; i++)
+        {
+            int zi = rIdz[index] + i - 1;
+            for (int j = 0; j < KR; j++)
+            {
+                int xi = rIdx[index] + j - 1;
+
+                seismogram[(tId - tlag) + index*nt] += rkw[i + j*KR + index*KW]*P[zi + xi*nzz];
+            }
+        }
+        
+        // seismogram[(tId - tlag) + index*nt] = P[rIdz[index] + rIdx[index]*nzz];
+    }    
 }
 
 __device__ float get_boundary_damper(float * d1D, float * d2D, int i, int j, int nxx, int nzz, int nb)

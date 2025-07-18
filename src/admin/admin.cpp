@@ -98,3 +98,55 @@ std::vector<std::string> split(std::string s, char delimiter)
    
     return tokens;
 }
+
+float bessel_i0(float x) {
+    float sum = 1.0, term = 1.0;
+    float k = 1.0;
+    while (term > 1e-10) {
+        term *= (x / (2.0 * k)) * (x / (2.0 * k));
+        sum += term;
+        k += 1.0;
+    }
+    return sum;
+}
+
+std::vector<std::vector<float>> kaiser_weights(
+    float x, float z,     // target point (not on grid)
+    int ix0, int iz0,     // top-left corner of 4x4 grid (integer indices)
+    float dx, float dz,   // grid spacing
+    float beta            // Kaiser beta
+) {
+    const int N = 4;
+    std::vector<std::vector<float>> weights(N, std::vector<float>(N));
+    float sum = 0.0f;
+
+    float rmax = sqrtf(2.0f) * 1.5f * std::max(dx, dz);
+    float I0_beta = bessel_i0(beta);
+
+    for (int i = 0; i < N; ++i) {
+        float zi = (iz0 + i - 1) * dz;
+        for (int j = 0; j < N; ++j) {
+            float xj = (ix0 + j - 1) * dx;
+
+            float rz = z - zi;
+            float rx = x - xj;
+            float r = sqrtf(rx * rx + rz * rz);
+            float rnorm = 2.0 * r / rmax;
+
+            float wij = 0.0f;
+            if (rnorm <= 1.0) {
+                float arg = beta * sqrtf(1.0f - rnorm * rnorm);
+                wij = bessel_i0(arg) / I0_beta;
+            }
+
+            weights[i][j] = wij;
+            sum += wij;
+        }
+    }
+
+    for (int i = 0; i < N; ++i)
+        for (int j = 0; j < N; ++j)
+            weights[i][j] /= sum;
+
+    return weights;
+}
