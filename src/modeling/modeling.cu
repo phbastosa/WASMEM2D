@@ -96,9 +96,13 @@ void Modeling::set_seismogram()
 {
     sBlocks = (int)((max_spread + NTHREADS - 1) / NTHREADS); 
 
-    h_seismogram = new float[nt*max_spread]();
+    h_seismogram_Ps = new float[nt*max_spread]();
+    h_seismogram_Vx = new float[nt*max_spread]();
+    h_seismogram_Vz = new float[nt*max_spread]();
 
-    cudaMalloc((void**)&(d_seismogram), nt*max_spread*sizeof(float));
+    cudaMalloc((void**)&(d_seismogram_Ps), nt*max_spread*sizeof(float));
+    cudaMalloc((void**)&(d_seismogram_Vx), nt*max_spread*sizeof(float));
+    cudaMalloc((void**)&(d_seismogram_Vz), nt*max_spread*sizeof(float));
 }
 
 void Modeling::set_wavelet()
@@ -109,7 +113,7 @@ void Modeling::set_wavelet()
     float t0 = 2.0f*sqrtf(M_PI) / fmax;
     float fc = fmax / (3.0f * sqrtf(M_PI));
 
-    tlag = (int)((t0 + 0.5f*dt) / dt);
+    tlag = (int)((t0 - 0.5f*dt) / dt) - 1;
 
     for (int n = 0; n < nt; n++)
     {
@@ -409,14 +413,24 @@ void Modeling::show_time_progress()
 
 void Modeling::compute_seismogram()
 {
-    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_P, d_rIdx, d_rIdz, d_rkw, d_seismogram, max_spread, timeId, tlag, nt, nzz);     
+    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_P, d_rIdx, d_rIdz, d_rkw, d_seismogram_Ps, max_spread, timeId, tlag, nt, nzz);     
+    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_Vx, d_rIdx, d_rIdz, d_rkw, d_seismogram_Vx, max_spread, timeId, tlag, nt, nzz);     
+    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_Vz, d_rIdx, d_rIdz, d_rkw, d_seismogram_Vz, max_spread, timeId, tlag, nt, nzz);     
 }
 
 void Modeling::export_seismogram()
 {   
-    cudaMemcpy(h_seismogram, d_seismogram, nt*max_spread*sizeof(float), cudaMemcpyDeviceToHost);    
-    std::string data_file = seismogram_folder + modeling_type + "_nStations" + std::to_string(geometry->spread[srcId]) + "_nSamples" + std::to_string(nt) + "_shot_" + std::to_string(geometry->sInd[srcId]+1) + ".bin";
-    export_binary_float(data_file, h_seismogram, nt*max_spread);    
+    cudaMemcpy(h_seismogram_Ps, d_seismogram_Ps, nt*max_spread*sizeof(float), cudaMemcpyDeviceToHost);    
+    cudaMemcpy(h_seismogram_Vx, d_seismogram_Vx, nt*max_spread*sizeof(float), cudaMemcpyDeviceToHost);    
+    cudaMemcpy(h_seismogram_Vz, d_seismogram_Vz, nt*max_spread*sizeof(float), cudaMemcpyDeviceToHost);    
+
+    std::string seismPs = seismogram_folder + modeling_type + "_Ps_nStations" + std::to_string(geometry->spread[srcId]) + "_nSamples" + std::to_string(nt) + "_shot_" + std::to_string(geometry->sInd[srcId]+1) + ".bin";
+    std::string seismVx = seismogram_folder + modeling_type + "_Vx_nStations" + std::to_string(geometry->spread[srcId]) + "_nSamples" + std::to_string(nt) + "_shot_" + std::to_string(geometry->sInd[srcId]+1) + ".bin";
+    std::string seismVz = seismogram_folder + modeling_type + "_Vz_nStations" + std::to_string(geometry->spread[srcId]) + "_nSamples" + std::to_string(nt) + "_shot_" + std::to_string(geometry->sInd[srcId]+1) + ".bin";
+
+    export_binary_float(seismPs, h_seismogram_Ps, nt*max_spread);    
+    export_binary_float(seismVx, h_seismogram_Vx, nt*max_spread);    
+    export_binary_float(seismVz, h_seismogram_Vz, nt*max_spread);    
 }
 
 void Modeling::expand_boundary(float * input, float * output)
@@ -569,26 +583,26 @@ __global__ void inner_sweep(float * T, float * S, int * sgnv, int * sgnt, int sg
     }
 }
 
-__global__ void compute_seismogram_GPU(float * P, int * rIdx, int * rIdz, float * rkw, float * seismogram, int spread, int tId, int tlag, int nt, int nzz)
+__global__ void compute_seismogram_GPU(float * WF, int * rIdx, int * rIdz, float * rkw, float * seismogram, int spread, int tId, int tlag, int nt, int nzz)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
     if ((index < spread) && (tId >= tlag))
     {
-        seismogram[(tId - tlag) + index*nt] = 0.0f;    
+        // seismogram[(tId - tlag) + index*nt] = 0.0f;    
         
-        for (int i = 0; i < KR; i++)
-        {
-            int zi = rIdz[index] + i - 1;
-            for (int j = 0; j < KR; j++)
-            {
-                int xi = rIdx[index] + j - 1;
+        // for (int i = 0; i < KR; i++)
+        // {
+        //     int zi = rIdz[index] + i - 1;
+        //     for (int j = 0; j < KR; j++)
+        //     {
+        //         int xi = rIdx[index] + j - 1;
 
-                seismogram[(tId - tlag) + index*nt] += rkw[i + j*KR + index*KW]*P[zi + xi*nzz];
-            }
-        }
+        //         seismogram[(tId - tlag) + index*nt] += rkw[i + j*KR + index*KW]*P[zi + xi*nzz];
+        //     }
+        // }
         
-        // seismogram[(tId - tlag) + index*nt] = P[rIdz[index] + rIdx[index]*nzz];
+        seismogram[(tId - tlag) + index*nt] = WF[rIdz[index] + rIdx[index]*nzz];
     }    
 }
 

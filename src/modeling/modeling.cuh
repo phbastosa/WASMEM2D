@@ -35,8 +35,13 @@ private:
     float * snapshot_in = nullptr;
     float * snapshot_out = nullptr;
 
-    float * d_seismogram = nullptr;
-    float * h_seismogram = nullptr;
+    float * h_seismogram_Ps = nullptr;
+    float * h_seismogram_Vx = nullptr;
+    float * h_seismogram_Vz = nullptr;
+
+    float * d_seismogram_Ps = nullptr;
+    float * d_seismogram_Vx = nullptr;
+    float * d_seismogram_Vz = nullptr;
 
     void set_wavelet();
     void set_dampers();
@@ -77,6 +82,13 @@ protected:
 
     float * d_skw = nullptr;
     float * d_rkw = nullptr;
+
+    // float * d_skwPs = nullptr;
+    // float * d_rkwPs = nullptr;
+    // float * d_skwVx = nullptr;
+    // float * d_rkwVx = nullptr;
+    // float * d_skwVz = nullptr;
+    // float * d_rkwVz = nullptr;
 
     std::string snapshot_folder;
     std::string seismogram_folder;

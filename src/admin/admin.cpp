@@ -110,23 +110,31 @@ float bessel_i0(float x) {
     return sum;
 }
 
-std::vector<std::vector<float>> kaiser_weights(
-    float x, float z,     // target point (not on grid)
-    int ix0, int iz0,     // top-left corner of 4x4 grid (integer indices)
-    float dx, float dz,   // grid spacing
-    float beta            // Kaiser beta
-) {
+float sinc(float x) 
+{
+    if (fabsf(x) < 1e-8f) return 1.0f;
+    return sinf(M_PI * x) / (M_PI * x);
+}
+
+std::vector<std::vector<float>> kaiser_weights(float x, float z, int ix0, int iz0, float dx, float dz, float beta) 
+{
     const int N = 4;
-    std::vector<std::vector<float>> weights(N, std::vector<float>(N));
     float sum = 0.0f;
+
+    std::vector<std::vector<float>> weights(N, std::vector<float>(N));
 
     float rmax = sqrtf(2.0f) * 1.5f * std::max(dx, dz);
     float I0_beta = bessel_i0(beta);
 
-    for (int i = 0; i < N; ++i) {
+    for (int i = 0; i < N; ++i) 
+    {    
         float zi = (iz0 + i - 1) * dz;
-        for (int j = 0; j < N; ++j) {
+        float dzr = (z - zi) / dz;
+        
+        for (int j = 0; j < N; ++j) 
+        {
             float xj = (ix0 + j - 1) * dx;
+            float dxr = (x - xj) / dx;
 
             float rz = z - zi;
             float rx = x - xj;
@@ -134,12 +142,16 @@ std::vector<std::vector<float>> kaiser_weights(
             float rnorm = 2.0 * r / rmax;
 
             float wij = 0.0f;
-            if (rnorm <= 1.0) {
+            if (rnorm <= 1.0f) 
+            {
                 float arg = beta * sqrtf(1.0f - rnorm * rnorm);
                 wij = bessel_i0(arg) / I0_beta;
             }
 
-            weights[i][j] = wij;
+            float sinc_term = sinc(dxr) * sinc(dzr);
+
+            weights[i][j] = sinc_term * wij;
+
             sum += wij;
         }
     }

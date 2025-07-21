@@ -1,23 +1,23 @@
 import numpy as np
 
-nx = 2001
-nz = 501
+nx = 1001
+nz = 301
 
-dx = 5.0
-dz = 5.0
+dx = 10.0
+dz = 10.0
 
 ns = 1
-nr = 17
+nr = 901
 
 SPS = np.zeros((ns, 2))
 RPS = np.zeros((nr, 2))
 XPS = np.zeros((ns, 3))
 
-SPS[:,0] = 505
-SPS[:,1] = 15 
+SPS[:,0] = 5007
+SPS[:,1] = 500 
 
-RPS[:,0] = np.linspace(200, 9800, nr)
-RPS[:,1] = 2015 
+RPS[:,0] = np.linspace(500, 9500, nr)
+RPS[:,1] = 2500 
 
 XPS[:,0] = np.arange(ns)
 XPS[:,1] = np.zeros(ns) 

@@ -1,92 +1,107 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-nx = 1001
-nz = 251
-
-dh = 10.0
+nr = 901
+nt = 4001
+dt = 1e-3
 
 SPS = np.loadtxt("../inputs/geometry/precision_test_SPS.txt", delimiter = ",", dtype = np.float32)
 RPS = np.loadtxt("../inputs/geometry/precision_test_RPS.txt", delimiter = ",", dtype = np.float32)
 
-vp = np.fromfile("../inputs/models/precision_test_vp.bin", dtype = np.float32, count = nx*nz).reshape([nz,nx], order = "F")
+prefix = "../outputs/seismograms/elastic_iso"
+suffix = "nStations901_nSamples4001_shot_1"
 
-fig, ax = plt.subplots(figsize = (15,5))
+seismPs_5m_g = np.fromfile(f"{prefix}_Ps_{suffix}_" + "5m_g.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
+seismVx_5m_g = np.fromfile(f"{prefix}_Vx_{suffix}_" + "5m_g.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
+seismVz_5m_g = np.fromfile(f"{prefix}_Vz_{suffix}_" + "5m_g.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
 
-im = ax.imshow(vp, cmap = "jet", vmin = 1400, vmax = 2000, extent = [0, (nx-1)*dh, (nz-1)*dh, 0])
+# seismPs_10m_g = np.fromfile(f"{prefix}_Ps_{suffix}_" + "10m_g.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
+# seismVx_10m_g = np.fromfile(f"{prefix}_Vx_{suffix}_" + "10m_g.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
+# seismVz_10m_g = np.fromfile(f"{prefix}_Vz_{suffix}_" + "10m_g.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
 
-ax.plot(SPS[0], SPS[1], "ok")
-ax.plot(RPS[:,0], RPS[:,1], "or")
+# seismPs_10m_nsx = np.fromfile(f"{prefix}_Ps_{suffix}_" + "10m_nsx.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
+# seismVx_10m_nsx = np.fromfile(f"{prefix}_Vx_{suffix}_" + "10m_nsx.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
+# seismVz_10m_nsx = np.fromfile(f"{prefix}_Vz_{suffix}_" + "10m_nsx.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
 
-ax.set_xlabel("Distance [m]", fontsize = 15)
-ax.set_ylabel("Depth [m]", fontsize = 15)
-
-fig.tight_layout()
-plt.show()
-
-
-
-
-nt = 14001
-dt = 5e-4
-
-nr = 17
-dr = 600
-
-path = "../outputs/seismograms/elastic_iso_nStations17_nSamples14001_shot_1"
-path2 = "../outputs/seismograms/elastic_ani_nStations17_nSamples14001_shot_1.bin"
-
-seism1 = np.fromfile(path + "_5m_raw.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
-seism2 = np.fromfile(path + "_10m_fixed.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
-seism3 = np.fromfile(path + "_10m_raw.bin", count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
-seism4 = np.fromfile(path2, count = nt*nr, dtype = np.float32).reshape([nt,nr], order = "F")
-
-fig, ax = plt.subplots(ncols = 3, figsize = (15, 7))
-
-ax[0].imshow(seism1, aspect = "auto", cmap = "Greys", extent = [200, (nr-1)*dr, (nt-1)*dt, 0])
-ax[0].set_title("dh = 5 m", fontsize = 15)
-ax[0].set_xlabel("Offset [m]", fontsize = 15)
-ax[0].set_ylabel("Time [s]", fontsize = 15)
-
-ax[1].imshow(seism2, aspect = "auto", cmap = "Greys", extent = [200, (nr-1)*dr, (nt-1)*dt, 0])
-ax[1].set_title("dh = 10 m compensed", fontsize = 15)
-ax[1].set_xlabel("Offset [m]", fontsize = 15)
-ax[1].set_ylabel("Time [s]", fontsize = 15)
-
-ax[2].imshow(seism3, aspect = "auto", cmap = "Greys", extent = [200, (nr-1)*dr, (nt-1)*dt, 0])
-ax[2].set_title("dh = 10 m uncompensed", fontsize = 15)
-ax[2].set_xlabel("Offset [m]", fontsize = 15)
-ax[2].set_ylabel("Time [s]", fontsize = 15)
-
-fig.tight_layout()
-
-plt.show()
+trace = int(0.2*nr)
 
 time = np.arange(nt)*dt
 
-trace1 = seism1[:,1] / np.max(seism1[:,1])
-trace2 = seism2[:,1] / np.max(seism2[:,1])
-trace3 = seism3[:,1] / np.max(seism3[:,1])
-trace4 = seism4[:,1] / np.max(seism4[:,1])
+analytical_time = np.sqrt((SPS[0] - RPS[trace,0])**2 + (SPS[1] - RPS[trace,1])**2) / 1500
 
-fig, ax = plt.subplots(figsize = (4,8))
+tracePs_5m_g = seismPs_5m_g[:,trace] 
+traceVx_5m_g = seismVx_5m_g[:,trace] 
+traceVz_5m_g = seismVz_5m_g[:,trace] 
 
-ax.plot(trace1, time, "k")
-ax.plot(trace2, time, "g")
-ax.plot(trace3, time, "r")
+# tracePs_10m_g = seismPs_10m_g[:,trace] / np.max(np.abs(seismPs_10m_g[:,trace]))
+# traceVx_10m_g = seismVx_10m_g[:,trace] / np.max(np.abs(seismVx_10m_g[:,trace]))
+# traceVz_10m_g = seismVz_10m_g[:,trace] / np.max(np.abs(seismVz_10m_g[:,trace]))
 
-ax.set_ylim([1,1.7])
+# tracePs_10m_nsx = seismPs_10m_nsx[:,trace] / np.max(np.abs(seismPs_10m_nsx[:,trace]))
+# traceVx_10m_nsx = seismVx_10m_nsx[:,trace] / np.max(np.abs(seismVx_10m_nsx[:,trace]))
+# traceVz_10m_nsx = seismVz_10m_nsx[:,trace] / np.max(np.abs(seismVz_10m_nsx[:,trace]))
 
-ax.invert_yaxis()
+n = 101
+amp = np.linspace(-1.5, 1.5, n)
+att = np.zeros(n) + analytical_time
+
+attPs_5m_g = np.zeros(n) + np.argmax(np.abs(tracePs_5m_g))*dt
+attVx_5m_g = np.zeros(n) + np.argmax(np.abs(traceVx_5m_g))*dt
+attVz_5m_g = np.zeros(n) + np.argmax(np.abs(traceVz_5m_g))*dt
+
+# attPs_10m_g = np.zeros(n) + np.argmax(np.abs(tracePs_10m_g))*dt
+# attVx_10m_g = np.zeros(n) + np.argmax(np.abs(traceVx_10m_g))*dt
+# attVz_10m_g = np.zeros(n) + np.argmax(np.abs(traceVz_10m_g))*dt
+
+# attPs_10m_nsx = np.zeros(n) + np.argmax(np.abs(tracePs_10m_nsx))*dt
+# attVx_10m_nsx = np.zeros(n) + np.argmax(np.abs(traceVx_10m_nsx))*dt
+# attVz_10m_nsx = np.zeros(n) + np.argmax(np.abs(traceVz_10m_nsx))*dt
+
+fig, ax = plt.subplots(ncols = 3, figsize = (8,9))
+
+ax[0].plot(amp, att, "--k")
+ax[0].plot(amp, attPs_5m_g, "--", color = "blue")
+# ax[0].plot(amp, attPs_10m_g, "--", color = "green")
+# ax[0].plot(amp, attPs_10m_nsx, "--", color = "red")
+ax[0].plot(tracePs_5m_g, time, color = "blue")
+# ax[0].plot(tracePs_10m_g, time, color = "green")
+# ax[0].plot(tracePs_10m_nsx, time, color = "red")
+ax[0].set_title("Pressure", fontsize = 15)
+ax[0].set_ylabel("Time [s]", fontsize = 15)
+ax[0].set_xlabel("Amplitude", fontsize = 15)
+# ax[0].set_ylim([1.9, 2.1])
+ax[0].invert_yaxis()
+
+ax[1].plot(amp, att, "--k")
+ax[1].plot(amp, attVx_5m_g, "--", color = "blue")
+# ax[1].plot(amp, attVx_10m_g, "--", color = "green")
+# ax[1].plot(amp, attVx_10m_nsx, "--", color = "red")
+ax[1].plot(traceVx_5m_g, time, color = "blue")
+# ax[1].plot(traceVx_10m_g, time, color = "green")
+# ax[1].plot(traceVx_10m_nsx, time, color = "red")
+ax[1].set_title("Vx", fontsize = 15)
+ax[1].set_ylabel("Time [s]", fontsize = 15)
+ax[1].set_xlabel("Amplitude", fontsize = 15)
+# ax[1].set_ylim([1.9, 2.1])
+ax[1].invert_yaxis()
+
+ax[2].plot(amp, att, "--k")
+ax[2].plot(amp, attVz_5m_g, "--", color = "blue")
+# ax[2].plot(amp, attVz_10m_g, "--", color = "green")
+# ax[2].plot(amp, attVz_10m_nsx, "--", color = "red")
+ax[2].plot(traceVz_5m_g, time, color = "blue")
+# ax[2].plot(traceVz_10m_g, time, color = "green")
+# ax[2].plot(traceVz_10m_nsx, time, color = "red")
+ax[2].set_title("Vz", fontsize = 15)
+ax[2].set_ylabel("Time [s]", fontsize = 15)
+ax[2].set_xlabel("Amplitude", fontsize = 15)
+# ax[2].set_ylim([1.9, 2.1])
+ax[2].invert_yaxis()
+
 fig.tight_layout()
 plt.show()
 
-time0 = np.sqrt((SPS[0] - RPS[1,0])**2 + (SPS[1] - RPS[1,1])**2) / 1500
-
-time1 = np.argmax(trace1)*dt
-time2 = np.argmax(trace2)*dt
-time3 = np.argmax(trace3)*dt
-time4 = np.argmax(trace4)*dt
-
-print(time0, time1, time2, time3, time4)
+print(f"{att[0] - attPs_5m_g[0]:.4f}", f"{att[0] - attVx_5m_g[0]:.4f}", f"{att[0] - attVz_5m_g[0]:.4f}")
+# print(f"{att[0] - attPs_10m_g[0]:.4f}", f"{att[0] - attVx_10m_g[0]:.4f}", f"{att[0] - attVz_10m_g[0]:.4f}")
+# print(f"{att[0] - attPs_10m_nsx[0]:.4f}", f"{att[0] - attVx_10m_nsx[0]:.4f}", f"{att[0] - attVz_10m_nsx[0]:.4f}")
 
