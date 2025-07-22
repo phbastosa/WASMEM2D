@@ -13,8 +13,8 @@ SPS = np.zeros((ns, 2))
 RPS = np.zeros((nr, 2))
 XPS = np.zeros((ns, 3))
 
-SPS[:,0] = 5007
-SPS[:,1] = 500 
+SPS[:,0] = 5008.2
+SPS[:,1] = 502.7 
 
 RPS[:,0] = np.linspace(500, 9500, nr)
 RPS[:,1] = 2500 
@@ -98,3 +98,18 @@ C15.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/precis
 C33.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/precision_test_C33.bin")
 C35.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/precision_test_C35.bin")
 C55.flatten("F").astype(np.float32, order = "F").tofile("../inputs/models/precision_test_C55.bin")
+
+import matplotlib.pyplot as plt
+
+fig, ax = plt.subplots(figsize = (12,5))
+
+ax.imshow(Vp, cmap = "jet", extent = [0, (nx-1)*dx, (nz-1)*dz, 0])
+
+ax.plot(SPS[:,0], SPS[:,1], "og")
+ax.plot(RPS[:,0], RPS[:,1], "or")
+
+ax.set_xlabel("X [m]", fontsize = 15)
+ax.set_ylabel("Z [m]", fontsize = 15)
+
+fig.tight_layout()
+plt.show()

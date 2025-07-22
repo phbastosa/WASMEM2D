@@ -69,7 +69,10 @@ void Modeling::set_geometry()
     }
 
     cudaMalloc((void**)&(d_skw), KW*sizeof(float));
-    cudaMalloc((void**)&(d_rkw), KW*max_spread*sizeof(float));
+    
+    cudaMalloc((void**)&(d_rkwPs), KW*max_spread*sizeof(float));
+    cudaMalloc((void**)&(d_rkwVx), KW*max_spread*sizeof(float));
+    cudaMalloc((void**)&(d_rkwVz), KW*max_spread*sizeof(float));
 
     cudaMalloc((void**)&(d_rIdx), max_spread*sizeof(int));
     cudaMalloc((void**)&(d_rIdz), max_spread*sizeof(int));
@@ -304,7 +307,9 @@ void Modeling::initialization()
     int * h_rIdx = new int[max_spread]();
     int * h_rIdz = new int[max_spread]();
 
-    float * h_rkw = new float[KW*max_spread]();
+    float * h_rkwPs = new float[KW*max_spread]();
+    float * h_rkwVx = new float[KW*max_spread]();
+    float * h_rkwVz = new float[KW*max_spread]();
 
     int spreadId = 0;
 
@@ -316,11 +321,19 @@ void Modeling::initialization()
         int rIdx = (int)(rx / dx);
         int rIdz = (int)(rz / dz);
     
-        auto rkw = kaiser_weights(rx, rz, rIdx, rIdz, dx, dz, KS);
+        auto rkwPs = kaiser_weights(rx, rz, rIdx, rIdz, dx, dz, KS);
+        auto rkwVx = kaiser_weights(rx + 0.5f*dx, rz, rIdx, rIdz, dx, dz, KS);
+        auto rkwVz = kaiser_weights(rx, rz + 0.5f*dz, rIdx, rIdz, dx, dz, KS);
         
         for (int zId = 0; zId < KR; zId++)
+        {
             for (int xId = 0; xId < KR; xId++)
-                h_rkw[zId + xId*KR + spreadId*KW] = rkw[zId][xId];
+            {
+                h_rkwPs[zId + xId*KR + spreadId*KW] = rkwPs[zId][xId];
+                h_rkwVx[zId + xId*KR + spreadId*KW] = rkwVx[zId][xId];
+                h_rkwVz[zId + xId*KR + spreadId*KW] = rkwVz[zId][xId];
+            }
+        }
 
         h_rIdx[spreadId] = rIdx + nb;
         h_rIdz[spreadId] = rIdz + nb;
@@ -329,13 +342,18 @@ void Modeling::initialization()
     }
 
     cudaMemcpy(d_skw, h_skw, KW*sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_rkw, h_rkw, KW*max_spread*sizeof(float), cudaMemcpyHostToDevice);
+    
+    cudaMemcpy(d_rkwPs, h_rkwPs, KW*max_spread*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rkwVx, h_rkwVx, KW*max_spread*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rkwVz, h_rkwVz, KW*max_spread*sizeof(float), cudaMemcpyHostToDevice);
 
     cudaMemcpy(d_rIdx, h_rIdx, max_spread*sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_rIdz, h_rIdz, max_spread*sizeof(int), cudaMemcpyHostToDevice);
 
     delete[] h_skw;
-    delete[] h_rkw;
+    delete[] h_rkwPs;
+    delete[] h_rkwVx;
+    delete[] h_rkwVz;
     delete[] h_rIdx;
     delete[] h_rIdz;
 }
@@ -413,9 +431,9 @@ void Modeling::show_time_progress()
 
 void Modeling::compute_seismogram()
 {
-    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_P, d_rIdx, d_rIdz, d_rkw, d_seismogram_Ps, max_spread, timeId, tlag, nt, nzz);     
-    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_Vx, d_rIdx, d_rIdz, d_rkw, d_seismogram_Vx, max_spread, timeId, tlag, nt, nzz);     
-    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_Vz, d_rIdx, d_rIdz, d_rkw, d_seismogram_Vz, max_spread, timeId, tlag, nt, nzz);     
+    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_P, d_rIdx, d_rIdz, d_rkwPs, d_seismogram_Ps, max_spread, timeId, tlag, nt, nzz);     
+    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_Vx, d_rIdx, d_rIdz, d_rkwVx, d_seismogram_Vx, max_spread, timeId, tlag+1, nt, nzz);     
+    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_Vz, d_rIdx, d_rIdz, d_rkwVz, d_seismogram_Vz, max_spread, timeId, tlag+1, nt, nzz);     
 }
 
 void Modeling::export_seismogram()
@@ -589,20 +607,20 @@ __global__ void compute_seismogram_GPU(float * WF, int * rIdx, int * rIdz, float
 
     if ((index < spread) && (tId >= tlag))
     {
-        // seismogram[(tId - tlag) + index*nt] = 0.0f;    
+        seismogram[(tId - tlag) + index*nt] = 0.0f;    
         
-        // for (int i = 0; i < KR; i++)
-        // {
-        //     int zi = rIdz[index] + i - 1;
-        //     for (int j = 0; j < KR; j++)
-        //     {
-        //         int xi = rIdx[index] + j - 1;
+        for (int i = 0; i < KR; i++)
+        {
+            int zi = rIdz[index] + i - 1;
+            for (int j = 0; j < KR; j++)
+            {
+                int xi = rIdx[index] + j - 1;
 
-        //         seismogram[(tId - tlag) + index*nt] += rkw[i + j*KR + index*KW]*P[zi + xi*nzz];
-        //     }
-        // }
+                seismogram[(tId - tlag) + index*nt] += rkw[i + j*KR + index*KW]*WF[zi + xi*nzz];
+            }
+        }
         
-        seismogram[(tId - tlag) + index*nt] = WF[rIdz[index] + rIdx[index]*nzz];
+        // seismogram[(tId - tlag) + index*nt] = WF[rIdz[index] + rIdx[index]*nzz];
     }    
 }
 

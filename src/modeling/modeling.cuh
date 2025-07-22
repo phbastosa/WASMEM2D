@@ -81,14 +81,9 @@ protected:
     int * d_sgnt = nullptr;
 
     float * d_skw = nullptr;
-    float * d_rkw = nullptr;
-
-    // float * d_skwPs = nullptr;
-    // float * d_rkwPs = nullptr;
-    // float * d_skwVx = nullptr;
-    // float * d_rkwVx = nullptr;
-    // float * d_skwVz = nullptr;
-    // float * d_rkwVz = nullptr;
+    float * d_rkwPs = nullptr;
+    float * d_rkwVx = nullptr;
+    float * d_rkwVz = nullptr;
 
     std::string snapshot_folder;
     std::string seismogram_folder;

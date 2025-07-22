@@ -94,20 +94,20 @@ __global__ void compute_velocity_ssg(float * Vx, float * Vz, float * Txx, float 
 
     if ((index == 0) && (tId < nt))
     {
-        // for (int i = 0; i < KR; i++)
-        // {
-        //     int zi = sIdz + i - 1;
-        //     for (int j = 0; j < KR; j++)
-        //     {
-        //         int xi = sIdx + j - 1;
+        for (int i = 0; i < KR; i++)
+        {
+            int zi = sIdz + i - 1;
+            for (int j = 0; j < KR; j++)
+            {
+                int xi = sIdx + j - 1;
 
-        //         Txx[zi + xi*nzz] += skw[i + j*KR]*wavelet[tId] / (dx*dz);
-        //         Tzz[zi + xi*nzz] += skw[i + j*KR]*wavelet[tId] / (dx*dz);
-        //     }
-        // }
+                Txx[zi + xi*nzz] += skw[i + j*KR]*wavelet[tId] / (dx*dz);
+                Tzz[zi + xi*nzz] += skw[i + j*KR]*wavelet[tId] / (dx*dz);
+            }
+        }
 
-        Txx[sIdz + sIdx*nzz] += wavelet[tId] / (dx*dz);
-        Tzz[sIdz + sIdx*nzz] += wavelet[tId] / (dx*dz);
+        // Txx[sIdz + sIdx*nzz] += wavelet[tId] / (dx*dz);
+        // Tzz[sIdz + sIdx*nzz] += wavelet[tId] / (dx*dz);
     }
 
     if ((T[index] < (float)(tId + tlag)*dt) && (index < nxx*nzz))
