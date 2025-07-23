@@ -3,12 +3,8 @@
 
 # include "modeling.cuh"
 
-# define RSGR 2
-
 class Elastic_ANI : public Modeling
 {
-    float * dwc = nullptr;
-
     uintc * d_B = nullptr; float maxB; float minB;
 
     uintc * d_C11 = nullptr; float maxC11; float minC11;
@@ -18,11 +14,12 @@ class Elastic_ANI : public Modeling
     uintc * d_C35 = nullptr; float maxC35; float minC35;
     uintc * d_C55 = nullptr; float maxC55; float minC55;
 
-    void set_specifications();
-
+    void initialization();
     void compute_eikonal();
     void compute_velocity();
     void compute_pressure();
+
+    void set_specifications();
 };
 
 __global__ void get_quasi_slowness(float * T, float * S, float dx, float dz, int sIdx, int sIdz, int nxx, int nzz, 
@@ -31,7 +28,7 @@ __global__ void get_quasi_slowness(float * T, float * S, float dx, float dz, int
                                    float minC33, float maxC33, float minC35, float maxC35, float minC55, float maxC55);
 
 __global__ void compute_velocity_rsg(float * Vx, float * Vz, float * Txx, float * Tzz, float * Txz, float * T, uintc * B, float minB, 
-                                     float maxB, float * damp1D, float * damp2D, float * wavelet, float * dwc, float dx, float dz, 
+                                     float maxB, float * damp1D, float * damp2D, float * wavelet, float * skw, float dx, float dz, 
                                      float dt, int tId, int tlag, int sIdx, int sIdz, int nxx, int nzz, int nb, int nt);
 
 __global__ void compute_pressure_rsg(float * Vx, float * Vz, float * Txx, float * Tzz, float * Txz, float * P, float * T, 

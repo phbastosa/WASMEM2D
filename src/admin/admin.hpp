@@ -26,5 +26,6 @@ std::vector<std::string> split(std::string s, char delimiter);
 float bessel_i0(float x);
 
 std::vector<std::vector<float>> kaiser_weights(float x, float z, int ix0, int iz0, float dx, float dz, float beta); 
+std::vector<std::vector<float>> gaussian_weights(float x, float z, int ix0, int iz0, float dx, float dz); 
 
 # endif

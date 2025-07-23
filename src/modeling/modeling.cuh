@@ -5,9 +5,7 @@
 
 # include "../geometry/geometry.hpp"
 
-# define KR 4
-# define KW 16
-# define KS 5.0f
+# define DGS 5
 
 # define NSWEEPS 4
 # define MESHDIM 2
@@ -52,7 +50,6 @@ private:
     void set_seismogram();
 
     void set_wavefields();
-    void initialization();
 
     void compute_snapshots();
     void compute_seismogram();
@@ -113,13 +110,14 @@ protected:
 
     float * d_wavelet = nullptr;
 
-    virtual void set_specifications() = 0;
+    void eikonal_solver();
     
+    virtual void initialization() = 0;
     virtual void compute_eikonal() = 0;
     virtual void compute_velocity() = 0;
     virtual void compute_pressure() = 0;
 
-    void eikonal_solver();
+    virtual void set_specifications() = 0;
 
     void expand_boundary(float * input, float * output);
     void reduce_boundary(float * input, float * output);

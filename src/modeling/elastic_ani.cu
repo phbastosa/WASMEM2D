@@ -5,33 +5,11 @@ void Elastic_ANI::set_specifications()
     modeling_type = "elastic_ani";
     modeling_name = "Modeling type: Elastic anisotropic solver";
 
-    int samples = 2*RSGR+1;
-    int nKernel = samples*samples;
-    float * kernel = new float[nKernel]();
-
-    int index = 0;
-    float sum = 0.0f;
-
-    for (int z = -RSGR; z <= RSGR; z++)
-    {
-        for (int x = -RSGR; x <= RSGR; x++)
-        {
-            float r = sqrtf(x*x + z*z);
-
-            kernel[index] = 1.0f/sqrtf(2.0f*M_PI)*expf(-0.5f*r*r);
-
-            sum += kernel[index]; 
-        
-            ++index;
-        }
-    }
-
-    for (index = 0; index < nKernel; index++) 
-        kernel[index] /= sum;
-
-    cudaMalloc((void**)&(dwc), nKernel*sizeof(float));
-    cudaMemcpy(dwc, kernel, nKernel*sizeof(float), cudaMemcpyHostToDevice);
-    delete[] kernel;
+    cudaMalloc((void**)&(d_skw), DGS*DGS*sizeof(float));
+    
+    cudaMalloc((void**)&(d_rkwPs), DGS*DGS*max_spread*sizeof(float));
+    cudaMalloc((void**)&(d_rkwVx), DGS*DGS*max_spread*sizeof(float));
+    cudaMalloc((void**)&(d_rkwVz), DGS*DGS*max_spread*sizeof(float));
 
     auto * Cij = new float[nPoints]();
 
@@ -127,6 +105,87 @@ void Elastic_ANI::set_specifications()
     delete[] Cij;
 }
 
+void Elastic_ANI::initialization()
+{
+    float beta = 5.0f;
+
+    sx = geometry->xsrc[geometry->sInd[srcId]];
+    sz = geometry->zsrc[geometry->sInd[srcId]];
+
+    sIdx = (int)((sx + 0.5f*dx) / dx);
+    sIdz = (int)((sz + 0.5f*dz) / dz);
+
+    float * h_skw = new float[DGS*DGS]();
+
+    auto skw = kaiser_weights(sx, sz, sIdx, sIdz, dx, dz, 5.0f);
+    auto sgw = gaussian_weights(sx, sz, sIdx, sIdz, dx, dz);
+
+    float sum = 0.0f;
+    for (int zId = 0; zId < DGS; zId++)
+        for (int xId = 0; xId < DGS; xId++)
+            sum += sgw[zId][xId]*skw[zId][xId];
+
+    for (int zId = 0; zId < DGS; zId++)
+        for (int xId = 0; xId < DGS; xId++)
+            h_skw[zId + xId*DGS] = 0.4f*sgw[zId][xId]*skw[zId][xId] / sum;
+
+    sIdx += nb; 
+    sIdz += nb;
+
+    int * h_rIdx = new int[max_spread]();
+    int * h_rIdz = new int[max_spread]();
+
+    float * h_rkwPs = new float[DGS*DGS*max_spread]();
+    float * h_rkwVx = new float[DGS*DGS*max_spread]();
+    float * h_rkwVz = new float[DGS*DGS*max_spread]();
+
+    int spreadId = 0;
+
+    for (recId = geometry->iRec[srcId]; recId < geometry->fRec[srcId]; recId++)
+    {
+        float rx = geometry->xrec[recId];
+        float rz = geometry->zrec[recId];
+        
+        int rIdx = (int)((rx + 0.5f*dx) / dx);
+        int rIdz = (int)((rz + 0.5f*dz) / dz);
+        
+        auto rkwPs = kaiser_weights(rx, rz, rIdx, rIdz, dx, dz, beta);        
+        auto rkwVx = kaiser_weights(rx + 0.5f*dx, rz + 0.5f*dz, rIdx, rIdz, dx, dz, beta);
+        auto rkwVz = kaiser_weights(rx + 0.5f*dx, rz + 0.5f*dz, rIdx, rIdz, dx, dz, beta);
+        
+        for (int zId = 0; zId < DGS; zId++)
+        {
+            for (int xId = 0; xId < DGS; xId++)
+            {
+                h_rkwPs[zId + xId*DGS + spreadId*DGS*DGS] = rkwPs[zId][xId];
+                h_rkwVx[zId + xId*DGS + spreadId*DGS*DGS] = rkwVx[zId][xId];
+                h_rkwVz[zId + xId*DGS + spreadId*DGS*DGS] = rkwVz[zId][xId];
+            }
+        }
+
+        h_rIdx[spreadId] = rIdx + nb;
+        h_rIdz[spreadId] = rIdz + nb;
+
+        ++spreadId;
+    }
+
+    cudaMemcpy(d_skw, h_skw, DGS*DGS*sizeof(float), cudaMemcpyHostToDevice);
+    
+    cudaMemcpy(d_rkwPs, h_rkwPs, DGS*DGS*max_spread*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rkwVx, h_rkwVx, DGS*DGS*max_spread*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rkwVz, h_rkwVz, DGS*DGS*max_spread*sizeof(float), cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_rIdx, h_rIdx, max_spread*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rIdz, h_rIdz, max_spread*sizeof(int), cudaMemcpyHostToDevice);
+
+    delete[] h_skw;
+    delete[] h_rkwPs;
+    delete[] h_rkwVx;
+    delete[] h_rkwVz;
+    delete[] h_rIdx;
+    delete[] h_rIdz;
+}
+
 void Elastic_ANI::compute_eikonal()
 {
     dim3 grid(1,1,1);
@@ -149,7 +208,7 @@ void Elastic_ANI::compute_eikonal()
 void Elastic_ANI::compute_velocity()
 {
     compute_velocity_rsg<<<nBlocks, NTHREADS>>>(d_Vx, d_Vz, d_Txx, d_Tzz, d_Txz, d_T, d_B, minB, maxB, d1D, d2D, 
-                                                d_wavelet, dwc, dx, dz, dt, timeId, tlag, sIdx, sIdz, nxx, nzz, nb, nt);
+                                                d_wavelet, d_skw, dx, dz, dt, timeId, tlag, sIdx, sIdz, nxx, nzz, nb, nt);
 }
 
 void Elastic_ANI::compute_pressure()
@@ -226,7 +285,7 @@ __global__ void get_quasi_slowness(float * T, float * S, float dx, float dz, int
 }
 
 __global__ void compute_velocity_rsg(float * Vx, float * Vz, float * Txx, float * Tzz, float * Txz, float * T, uintc * B, float minB, 
-                                     float maxB, float * damp1D, float * damp2D, float * wavelet, float * dwc, float dx, float dz, 
+                                     float maxB, float * damp1D, float * damp2D, float * wavelet, float * skw, float dx, float dz, 
                                      float dt, int tId, int tlag, int sIdx, int sIdz, int nxx, int nzz, int nb, int nt)
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
@@ -236,16 +295,15 @@ __global__ void compute_velocity_rsg(float * Vx, float * Vz, float * Txx, float 
 
     if ((index == 0) && (tId < nt))
     {
-        int sId = 0;
-
-        for (int si = -RSGR; si <= RSGR; si++)
+        for (int i = 0; i < DGS; i++)
         {
-            for (int sj = -RSGR; sj <= RSGR; sj++)
+            int zi = sIdz + i - 2;
+            for (int j = 0; j < DGS; j++)
             {
-                Txx[(sIdz+si) + (sIdx+sj)*nzz] += dwc[sId]*wavelet[tId] / (dx*dz);
-                Tzz[(sIdz+si) + (sIdx+sj)*nzz] += dwc[sId]*wavelet[tId] / (dx*dz);                            
-                    
-                ++sId;
+                int xi = sIdx + j - 2;
+
+                Txx[zi + xi*nzz] += skw[i + j*DGS]*wavelet[tId] / (dx*dz);
+                Tzz[zi + xi*nzz] += skw[i + j*DGS]*wavelet[tId] / (dx*dz);
             }
         }
     }

@@ -5,6 +5,12 @@ void Elastic_ISO::set_specifications()
     modeling_type = "elastic_iso";
     modeling_name = "Modeling type: Elastic isotropic solver";
 
+    cudaMalloc((void**)&(d_skw), DGS*DGS*sizeof(float));
+    
+    cudaMalloc((void**)&(d_rkwPs), DGS*DGS*max_spread*sizeof(float));
+    cudaMalloc((void**)&(d_rkwVx), DGS*DGS*max_spread*sizeof(float));
+    cudaMalloc((void**)&(d_rkwVz), DGS*DGS*max_spread*sizeof(float));
+
     auto * Cij = new float[nPoints]();
 
     std::string vp_file = catch_parameter("vp_model_file", parameters);
@@ -59,6 +65,81 @@ void Elastic_ISO::set_specifications()
     delete[] uC55;
 }
 
+void Elastic_ISO::initialization()
+{
+    float beta = 5.0f;
+
+    sx = geometry->xsrc[geometry->sInd[srcId]];
+    sz = geometry->zsrc[geometry->sInd[srcId]];
+
+    sIdx = (int)((sx + 0.5f*dx) / dx);
+    sIdz = (int)((sz + 0.5f*dz) / dz);
+
+    float * h_skw = new float[DGS*DGS]();
+
+    auto skw = kaiser_weights(sx, sz, sIdx, sIdz, dx, dz, beta);
+
+    for (int zId = 0; zId < DGS; zId++)
+        for (int xId = 0; xId < DGS; xId++)
+            h_skw[zId + xId*DGS] = skw[zId][xId];
+
+    sIdx += nb; 
+    sIdz += nb;
+
+    int * h_rIdx = new int[max_spread]();
+    int * h_rIdz = new int[max_spread]();
+
+    float * h_rkwPs = new float[DGS*DGS*max_spread]();
+    float * h_rkwVx = new float[DGS*DGS*max_spread]();
+    float * h_rkwVz = new float[DGS*DGS*max_spread]();
+
+    int spreadId = 0;
+
+    for (recId = geometry->iRec[srcId]; recId < geometry->fRec[srcId]; recId++)
+    {
+        float rx = geometry->xrec[recId];
+        float rz = geometry->zrec[recId];
+        
+        int rIdx = (int)((rx + 0.5f*dz) / dx);
+        int rIdz = (int)((rz + 0.5f*dz) / dz);
+    
+        auto rkwPs = kaiser_weights(rx, rz, rIdx, rIdz, dx, dz, beta);
+        auto rkwVx = kaiser_weights(rx + 0.5f*dx, rz, rIdx, rIdz, dx, dz, beta);
+        auto rkwVz = kaiser_weights(rx, rz + 0.5f*dz, rIdx, rIdz, dx, dz, beta);
+        
+        for (int zId = 0; zId < DGS; zId++)
+        {
+            for (int xId = 0; xId < DGS; xId++)
+            {
+                h_rkwPs[zId + xId*DGS + spreadId*DGS*DGS] = rkwPs[zId][xId];
+                h_rkwVx[zId + xId*DGS + spreadId*DGS*DGS] = rkwVx[zId][xId];
+                h_rkwVz[zId + xId*DGS + spreadId*DGS*DGS] = rkwVz[zId][xId];
+            }
+        }
+
+        h_rIdx[spreadId] = rIdx + nb;
+        h_rIdz[spreadId] = rIdz + nb;
+
+        ++spreadId;
+    }
+
+    cudaMemcpy(d_skw, h_skw, DGS*DGS*sizeof(float), cudaMemcpyHostToDevice);
+    
+    cudaMemcpy(d_rkwPs, h_rkwPs, DGS*DGS*max_spread*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rkwVx, h_rkwVx, DGS*DGS*max_spread*sizeof(float), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rkwVz, h_rkwVz, DGS*DGS*max_spread*sizeof(float), cudaMemcpyHostToDevice);
+
+    cudaMemcpy(d_rIdx, h_rIdx, max_spread*sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_rIdz, h_rIdz, max_spread*sizeof(int), cudaMemcpyHostToDevice);
+
+    delete[] h_skw;
+    delete[] h_rkwPs;
+    delete[] h_rkwVx;
+    delete[] h_rkwVz;
+    delete[] h_rIdx;
+    delete[] h_rIdz;
+}
+
 void Elastic_ISO::compute_eikonal()
 {
     dim3 grid(1,1,1);
@@ -94,20 +175,17 @@ __global__ void compute_velocity_ssg(float * Vx, float * Vz, float * Txx, float 
 
     if ((index == 0) && (tId < nt))
     {
-        for (int i = 0; i < KR; i++)
+        for (int i = 0; i < DGS; i++)
         {
-            int zi = sIdz + i - 1;
-            for (int j = 0; j < KR; j++)
+            int zi = sIdz + i - 2;
+            for (int j = 0; j < DGS; j++)
             {
-                int xi = sIdx + j - 1;
+                int xi = sIdx + j - 2;
 
-                Txx[zi + xi*nzz] += skw[i + j*KR]*wavelet[tId] / (dx*dz);
-                Tzz[zi + xi*nzz] += skw[i + j*KR]*wavelet[tId] / (dx*dz);
+                Txx[zi + xi*nzz] += skw[i + j*DGS]*wavelet[tId] / (dx*dz);
+                Tzz[zi + xi*nzz] += skw[i + j*DGS]*wavelet[tId] / (dx*dz);
             }
         }
-
-        // Txx[sIdz + sIdx*nzz] += wavelet[tId] / (dx*dz);
-        // Tzz[sIdz + sIdx*nzz] += wavelet[tId] / (dx*dz);
     }
 
     if ((T[index] < (float)(tId + tlag)*dt) && (index < nxx*nzz))

@@ -10,11 +10,12 @@ class Elastic_ISO : public Modeling
     uintc * d_C13 = nullptr; float maxC13; float minC13;
     uintc * d_C55 = nullptr; float maxC55; float minC55;
 
-    void set_specifications();
-
+    void initialization();
     void compute_eikonal();
     void compute_velocity();
     void compute_pressure();
+
+    void set_specifications();
 };
 
 __global__ void compute_velocity_ssg(float * Vx, float * Vz, float * Txx, float * Tzz, float * Txz, float * T, uintc * B, float maxB, float minB, 

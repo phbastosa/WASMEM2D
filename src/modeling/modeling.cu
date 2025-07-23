@@ -68,12 +68,6 @@ void Modeling::set_geometry()
             max_spread = geometry->spread[index]; 
     }
 
-    cudaMalloc((void**)&(d_skw), KW*sizeof(float));
-    
-    cudaMalloc((void**)&(d_rkwPs), KW*max_spread*sizeof(float));
-    cudaMalloc((void**)&(d_rkwVx), KW*max_spread*sizeof(float));
-    cudaMalloc((void**)&(d_rkwVz), KW*max_spread*sizeof(float));
-
     cudaMalloc((void**)&(d_rIdx), max_spread*sizeof(int));
     cudaMalloc((void**)&(d_rIdz), max_spread*sizeof(int));
 }
@@ -285,79 +279,6 @@ void Modeling::set_wavefields()
 	cudaMemset(d_Txz, 0.0f, matsize*sizeof(float));
 }
 
-void Modeling::initialization()
-{
-    sx = geometry->xsrc[geometry->sInd[srcId]];
-    sz = geometry->zsrc[geometry->sInd[srcId]];
-
-    sIdx = (int)(sx / dx);
-    sIdz = (int)(sz / dz);
-
-    float * h_skw = new float[KW]();
-
-    auto skw = kaiser_weights(sx, sz, sIdx, sIdz, dx, dz, KS);
-
-    for (int zId = 0; zId < KR; zId++)
-        for (int xId = 0; xId < KR; xId++)
-            h_skw[zId + xId*KR] = skw[zId][xId];
-
-    sIdx += nb; 
-    sIdz += nb;
-
-    int * h_rIdx = new int[max_spread]();
-    int * h_rIdz = new int[max_spread]();
-
-    float * h_rkwPs = new float[KW*max_spread]();
-    float * h_rkwVx = new float[KW*max_spread]();
-    float * h_rkwVz = new float[KW*max_spread]();
-
-    int spreadId = 0;
-
-    for (recId = geometry->iRec[srcId]; recId < geometry->fRec[srcId]; recId++)
-    {
-        float rx = geometry->xrec[recId];
-        float rz = geometry->zrec[recId];
-        
-        int rIdx = (int)(rx / dx);
-        int rIdz = (int)(rz / dz);
-    
-        auto rkwPs = kaiser_weights(rx, rz, rIdx, rIdz, dx, dz, KS);
-        auto rkwVx = kaiser_weights(rx + 0.5f*dx, rz, rIdx, rIdz, dx, dz, KS);
-        auto rkwVz = kaiser_weights(rx, rz + 0.5f*dz, rIdx, rIdz, dx, dz, KS);
-        
-        for (int zId = 0; zId < KR; zId++)
-        {
-            for (int xId = 0; xId < KR; xId++)
-            {
-                h_rkwPs[zId + xId*KR + spreadId*KW] = rkwPs[zId][xId];
-                h_rkwVx[zId + xId*KR + spreadId*KW] = rkwVx[zId][xId];
-                h_rkwVz[zId + xId*KR + spreadId*KW] = rkwVz[zId][xId];
-            }
-        }
-
-        h_rIdx[spreadId] = rIdx + nb;
-        h_rIdz[spreadId] = rIdz + nb;
-
-        ++spreadId;
-    }
-
-    cudaMemcpy(d_skw, h_skw, KW*sizeof(float), cudaMemcpyHostToDevice);
-    
-    cudaMemcpy(d_rkwPs, h_rkwPs, KW*max_spread*sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_rkwVx, h_rkwVx, KW*max_spread*sizeof(float), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_rkwVz, h_rkwVz, KW*max_spread*sizeof(float), cudaMemcpyHostToDevice);
-
-    cudaMemcpy(d_rIdx, h_rIdx, max_spread*sizeof(int), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_rIdz, h_rIdz, max_spread*sizeof(int), cudaMemcpyHostToDevice);
-
-    delete[] h_skw;
-    delete[] h_rkwPs;
-    delete[] h_rkwVx;
-    delete[] h_rkwVz;
-    delete[] h_rIdx;
-    delete[] h_rIdz;
-}
-
 void Modeling::eikonal_solver()
 {
     int min_level = std::min(nxx, nzz);
@@ -432,8 +353,8 @@ void Modeling::show_time_progress()
 void Modeling::compute_seismogram()
 {
     compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_P, d_rIdx, d_rIdz, d_rkwPs, d_seismogram_Ps, max_spread, timeId, tlag, nt, nzz);     
-    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_Vx, d_rIdx, d_rIdz, d_rkwVx, d_seismogram_Vx, max_spread, timeId, tlag+1, nt, nzz);     
-    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_Vz, d_rIdx, d_rIdz, d_rkwVz, d_seismogram_Vz, max_spread, timeId, tlag+1, nt, nzz);     
+    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_Vx, d_rIdx, d_rIdz, d_rkwVx, d_seismogram_Vx, max_spread, timeId, tlag, nt, nzz);     
+    compute_seismogram_GPU<<<sBlocks,NTHREADS>>>(d_Vz, d_rIdx, d_rIdz, d_rkwVz, d_seismogram_Vz, max_spread, timeId, tlag, nt, nzz);     
 }
 
 void Modeling::export_seismogram()
@@ -605,22 +526,21 @@ __global__ void compute_seismogram_GPU(float * WF, int * rIdx, int * rIdz, float
 {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
-    if ((index < spread) && (tId >= tlag))
-    {
+    if ((index < spread) && (tId > tlag))
+    {   
         seismogram[(tId - tlag) + index*nt] = 0.0f;    
-        
-        for (int i = 0; i < KR; i++)
+                
+        for (int i = 0; i < DGS; i++)
         {
-            int zi = rIdz[index] + i - 1;
-            for (int j = 0; j < KR; j++)
-            {
-                int xi = rIdx[index] + j - 1;
+            int zi = rIdz[index] + i - 2;
 
-                seismogram[(tId - tlag) + index*nt] += rkw[i + j*KR + index*KW]*WF[zi + xi*nzz];
+            for (int j = 0; j < DGS; j++)
+            {
+                int xi = rIdx[index] + j - 2;
+
+                seismogram[(tId - tlag) + index*nt] += rkw[i + j*DGS + index*DGS*DGS]*WF[zi + xi*nzz];
             }
         }
-        
-        // seismogram[(tId - tlag) + index*nt] = WF[rIdz[index] + rIdx[index]*nzz];
     }    
 }
 
