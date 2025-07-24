@@ -141,7 +141,9 @@ std::vector<std::vector<float>> kaiser_weights(float x, float z, int ix0, int iz
 
             float rz = z - zi;
             float rx = x - xj;
+
             float r = sqrtf(rx * rx + rz * rz);
+
             float rnorm = 2.0f * r / rmax;
 
             float wij = 0.0f;
@@ -155,7 +157,7 @@ std::vector<std::vector<float>> kaiser_weights(float x, float z, int ix0, int iz
 
             weights[i][j] = sinc_term * wij;
 
-            sum += wij;
+            sum += weights[i][j];
         }
     }
 
@@ -188,7 +190,9 @@ std::vector<std::vector<float>> gaussian_weights(float x, float z, int ix0, int 
 
             float r = sqrtf(rx * rx + rz * rz) / rmax;
 
-            weights[i][j] = 1.0f/sqrtf(2.0f*M_PI)*expf(-0.5f*r*r);
+            float wij = 1.0f/sqrtf(2.0f*M_PI)*expf(-0.5f*r*r);
+
+            weights[i][j] = wij;
 
             sum += weights[i][j];
         }

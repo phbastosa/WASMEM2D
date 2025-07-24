@@ -13,8 +13,8 @@ SPS = np.zeros((ns, 2))
 RPS = np.zeros((nr, 2))
 XPS = np.zeros((ns, 3))
 
-SPS[:,0] = 5005
-SPS[:,1] = 505 
+SPS[:,0] = 5000
+SPS[:,1] = 500 
 
 RPS[:,0] = np.linspace(500, 9500, nr)
 RPS[:,1] = 2500 

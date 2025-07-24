@@ -28,7 +28,7 @@ XPS = ../inputs/geometry/precision_test_XPS.txt
 # [1] - Elastic ANI
 # --------------------------------------------------------------------------------------------------
 
-modeling_type = 0
+modeling_type = 1
 
 time_samples = 4001
 time_spacing = 1e-3
@@ -37,7 +37,7 @@ max_frequency = 30.0
 boundary_samples = 1000
 boundary_damping = 0.0
 
-snapshot = false
+snapshot = true
 beg_snap = 1000
 end_snap = 1000
 num_snap = 1

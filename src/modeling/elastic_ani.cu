@@ -117,17 +117,11 @@ void Elastic_ANI::initialization()
 
     float * h_skw = new float[DGS*DGS]();
 
-    auto skw = kaiser_weights(sx, sz, sIdx, sIdz, dx, dz, 5.0f);
     auto sgw = gaussian_weights(sx, sz, sIdx, sIdz, dx, dz);
 
-    float sum = 0.0f;
     for (int zId = 0; zId < DGS; zId++)
         for (int xId = 0; xId < DGS; xId++)
-            sum += sgw[zId][xId]*skw[zId][xId];
-
-    for (int zId = 0; zId < DGS; zId++)
-        for (int xId = 0; xId < DGS; xId++)
-            h_skw[zId + xId*DGS] = 0.4f*sgw[zId][xId]*skw[zId][xId] / sum;
+            h_skw[zId + xId*DGS] = sgw[zId][xId];
 
     sIdx += nb; 
     sIdz += nb;
@@ -148,7 +142,7 @@ void Elastic_ANI::initialization()
         
         int rIdx = (int)((rx + 0.5f*dx) / dx);
         int rIdz = (int)((rz + 0.5f*dz) / dz);
-        
+
         auto rkwPs = kaiser_weights(rx, rz, rIdx, rIdz, dx, dz, beta);        
         auto rkwVx = kaiser_weights(rx + 0.5f*dx, rz + 0.5f*dz, rIdx, rIdz, dx, dz, beta);
         auto rkwVz = kaiser_weights(rx + 0.5f*dx, rz + 0.5f*dz, rIdx, rIdz, dx, dz, beta);

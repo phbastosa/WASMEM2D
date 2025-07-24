@@ -25,19 +25,19 @@ time = np.arange(nt)*dt
 
 fig, ax = plt.subplots(ncols = 3, figsize = (12,6))
 
-ax[0].imshow(seismPs_r, cmap = "Greys", aspect = "auto", extent = [0, nr-1, (nt-1)*dt, 0])
+ax[0].imshow(seismPs_c, cmap = "Greys", aspect = "auto", extent = [0, nr-1, (nt-1)*dt, 0])
 ax[0].plot(np.ones(nt)*trace, time)
 ax[0].set_title("Pressure", fontsize = 15)
 ax[0].set_ylabel("Time [s]", fontsize = 15)
 ax[0].set_xlabel("Receiver Index [s]", fontsize = 15)
 
-ax[1].imshow(seismVx_r, cmap = "Greys", aspect = "auto", extent = [0, nr-1, (nt-1)*dt, 0])
+ax[1].imshow(seismVx_c, cmap = "Greys", aspect = "auto", extent = [0, nr-1, (nt-1)*dt, 0])
 ax[1].plot(np.ones(nt)*trace, time)
 ax[1].set_title("Vx", fontsize = 15)
 ax[1].set_ylabel("Time [s]", fontsize = 15)
 ax[1].set_xlabel("Receiver Index [s]", fontsize = 15)
 
-ax[2].imshow(seismVz_r, cmap = "Greys", aspect = "auto", extent = [0, nr-1, (nt-1)*dt, 0])
+ax[2].imshow(seismVz_c, cmap = "Greys", aspect = "auto", extent = [0, nr-1, (nt-1)*dt, 0])
 ax[2].plot(np.ones(nt)*trace, time)
 ax[2].set_title("Vz", fontsize = 15)
 ax[2].set_ylabel("Time [s]", fontsize = 15)
@@ -49,13 +49,13 @@ plt.show()
 
 analytical_time = np.sqrt((SPS[0] - RPS[trace,0])**2 + (SPS[1] - RPS[trace,1])**2) / 1500
 
-tracePs_r = seismPs_r[:,trace] #/ np.max(np.abs(seismPs_r[:,trace]))
-traceVx_r = seismVx_r[:,trace] #/ np.max(np.abs(seismVx_r[:,trace]))
-traceVz_r = seismVz_r[:,trace] #/ np.max(np.abs(seismVz_r[:,trace]))
+tracePs_r = seismPs_r[:,trace] / np.max(np.abs(seismPs_r[:,trace]))
+traceVx_r = seismVx_r[:,trace] / np.max(np.abs(seismVx_r[:,trace]))
+traceVz_r = seismVz_r[:,trace] / np.max(np.abs(seismVz_r[:,trace]))
 
-tracePs_c = seismPs_c[:,trace] #/ np.max(np.abs(seismPs_c[:,trace]))
-traceVx_c = seismVx_c[:,trace] #/ np.max(np.abs(seismVx_c[:,trace]))
-traceVz_c = seismVz_c[:,trace] #/ np.max(np.abs(seismVz_c[:,trace]))
+tracePs_c = seismPs_c[:,trace] / np.max(np.abs(seismPs_c[:,trace]))
+traceVx_c = seismVx_c[:,trace] / np.max(np.abs(seismVx_c[:,trace]))
+traceVz_c = seismVz_c[:,trace] / np.max(np.abs(seismVz_c[:,trace]))
 
 n = 101
 amp = np.linspace(-1.5, 1.5, n)
@@ -71,9 +71,9 @@ attVz_c = np.zeros(n) + np.argmax(np.abs(traceVz_c))*dt
 
 fig, ax = plt.subplots(ncols = 3, figsize = (8,9))
 
-# ax[0].plot(amp, att, "--k", label = "Analytical")
-# ax[0].plot(amp, attPs_r, "--", color = "blue", label = "SSG")
-# ax[0].plot(amp, attPs_c, "--", color = "green", label = "RSG")
+ax[0].plot(amp, att, "--k", label = "Analytical")
+ax[0].plot(amp, attPs_r, "--", color = "blue", label = "SSG")
+ax[0].plot(amp, attPs_c, "--", color = "green", label = "RSG")
 ax[0].plot(tracePs_r, time, color = "blue", label = "SSG")
 ax[0].plot(tracePs_c, time, color = "green", label = "RSG")
 ax[0].set_title("Pressure", fontsize = 15)
@@ -83,9 +83,9 @@ ax[0].set_ylim([2.5, 3.0])
 ax[0].invert_yaxis()
 ax[0].legend(loc = "upper right", fontsize = 12)
 
-# ax[1].plot(amp, att, "--k", label = "Analytical")
-# ax[1].plot(amp, attVx_r, "--", color = "blue", label = "SSG")
-# ax[1].plot(amp, attVx_c, "--", color = "green", label = "RSG")
+ax[1].plot(amp, att, "--k", label = "Analytical")
+ax[1].plot(amp, attVx_r, "--", color = "blue", label = "SSG")
+ax[1].plot(amp, attVx_c, "--", color = "green", label = "RSG")
 ax[1].plot(traceVx_r, time, color = "blue", label = "SSG")
 ax[1].plot(traceVx_c, time, color = "green", label = "RSG")
 ax[1].set_title("Vx", fontsize = 15)
@@ -95,9 +95,9 @@ ax[1].set_ylim([2.5, 3.0])
 ax[1].invert_yaxis()
 ax[1].legend(loc = "upper right", fontsize = 12)
 
-# ax[2].plot(amp, att, "--k", label = "Analytical")
-# ax[2].plot(amp, attVz_r, "--", color = "blue", label = "SSG")
-# ax[2].plot(amp, attVz_c, "--", color = "green", label = "RSG")
+ax[2].plot(amp, att, "--k", label = "Analytical")
+ax[2].plot(amp, attVz_r, "--", color = "blue", label = "SSG")
+ax[2].plot(amp, attVz_c, "--", color = "green", label = "RSG")
 ax[2].plot(traceVz_r, time, color = "blue", label = "SSG")
 ax[2].plot(traceVz_c, time, color = "green", label = "RSG")
 ax[2].set_title("Vz", fontsize = 15)
