@@ -97,8 +97,8 @@ xlab = np.linspace(0, nr, 5, dtype = int)
 tloc = np.linspace(0, nt-1, 11)
 tlab = np.linspace(0, (nt-1)*dt, 11)
 
-seismogram_iso = pyf.read_binary_matrix(nt, nr, f"../outputs/seismograms/elastic_iso_nStations{nr}_nSamples{nt}_shot_1.bin")
-seismogram_ani = pyf.read_binary_matrix(nt, nr, f"../outputs/seismograms/elastic_ani_nStations{nr}_nSamples{nt}_shot_1.bin")
+seismogram_iso = pyf.read_binary_matrix(nt, nr, f"../outputs/seismograms/elastic_iso_Ps_nStations{nr}_nSamples{nt}_shot_1.bin")
+seismogram_ani = pyf.read_binary_matrix(nt, nr, f"../outputs/seismograms/elastic_ani_Ps_nStations{nr}_nSamples{nt}_shot_1.bin")
 
 trace_iso = seismogram_iso[:,int(0.5*nr)].copy()
 trace_ani = seismogram_ani[:,int(0.5*nr)].copy()
